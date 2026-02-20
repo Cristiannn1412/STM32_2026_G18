@@ -1,0 +1,10 @@
+10:47:47 **** Incremental Build of configuration Debug for project BP_LED_INTERRUPT ****
+make -j4 all 
+arm-none-eabi-size  BP_LED_INTERRUPT.elf 
+   text	   data	    bss	    dec	    hex	filename
+  12684	     12	   1708	  14404	   3844	BP_LED_INTERRUPT.elf
+Finished building: default.size.stdout
+ 
+
+10:47:47 Build Finished. 0 errors, 0 warnings. (took 320ms)
+

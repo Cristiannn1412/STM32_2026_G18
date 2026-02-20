@@ -1,0 +1,236 @@
+/*
+ * Capteur Ultrasonique Grove - Seeed Studios
+ * STM32L476RG Nucleo
+ * Gestion par interruptions
+ *
+ * Connexions:
+ * - SIG -> PB3 (TIM2_CH2) pour mesure du temps d'écho
+ * - VCC -> 5V
+ * - GND -> GND
+ */
+
+#include "stm32l4xx_hal.h"
+#include <stdbool.h>
+
+/* Variables globales pour la mesure */
+volatile uint32_t ic_val1 = 0;
+volatile uint32_t ic_val2 = 0;
+volatile uint32_t difference = 0;
+volatile bool is_first_captured = false;
+volatile bool measurement_done = false;
+volatile float distance_cm = 0;
+
+/* Handle du timer (à adapter selon votre configuration CubeMX) */
+extern TIM_HandleTypeDef htim2;
+
+/**
+ * @brief Fonction pour déclencher une mesure ultrasonique
+ * @note Génère une impulsion de 10µs sur la broche SIG
+ */
+void Ultrasonic_Trigger(void)
+{
+    /* Configurer la broche en sortie pour le trigger */
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_3;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* Générer l'impulsion de trigger (10µs minimum) */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
+    HAL_Delay(1);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
+    HAL_Delay_us(10);  // Voir fonction ci-dessous si HAL_Delay_us n'existe pas
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_RESET);
+
+    /* Reconfigurer la broche en input capture */
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* Réinitialiser les flags */
+    is_first_captured = false;
+    measurement_done = false;
+}
+
+/**
+ * @brief Délai en microsecondes (si HAL_Delay_us n'existe pas)
+ * @param us: Nombre de microsecondes
+ */
+void HAL_Delay_us(uint32_t us)
+{
+    uint32_t start = DWT->CYCCNT;
+    uint32_t cycles = us * (SystemCoreClock / 1000000);
+
+    while ((DWT->CYCCNT - start) < cycles);
+}
+
+/**
+ * @brief Initialisation du DWT pour les délais microsecondes
+ */
+void DWT_Init(void)
+{
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+    DWT->CYCCNT = 0;
+}
+
+/**
+ * @brief Callback d'interruption Input Capture
+ * @param htim: Handle du timer
+ */
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM2)
+    {
+        if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
+        {
+            if (!is_first_captured)
+            {
+                /* Première capture: front montant */
+                ic_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+                is_first_captured = true;
+
+                /* Changer la polarité pour capturer le front descendant */
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
+            }
+            else
+            {
+                /* Deuxième capture: front descendant */
+                ic_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+
+                /* Calculer la différence en tenant compte du débordement */
+                if (ic_val2 >= ic_val1)
+                {
+                    difference = ic_val2 - ic_val1;
+                }
+                else
+                {
+                    difference = (0xFFFFFFFF - ic_val1) + ic_val2 + 1;
+                }
+
+                /* Calculer la distance
+                 * Formule: distance (cm) = (temps en µs × vitesse du son) / 2
+                 * Vitesse du son ≈ 343 m/s = 0.0343 cm/µs
+                 * Distance = (difference / fréquence_timer) * 0.0343 / 2
+                 *
+                 * Avec TIM2 à 1MHz (prescaler approprié):
+                 * Distance = difference * 0.01715 cm
+                 */
+                distance_cm = (float)difference * 0.01715f;
+
+                /* Limiter la distance à la plage valide (2cm - 400cm pour Grove) */
+                if (distance_cm < 2.0f)
+                    distance_cm = 2.0f;
+                if (distance_cm > 400.0f)
+                    distance_cm = 400.0f;
+
+                /* Mesure terminée */
+                measurement_done = true;
+
+                /* Restaurer la polarité pour le prochain front montant */
+                __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+
+                /* Arrêter le timer */
+                HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_2);
+            }
+        }
+    }
+}
+
+/**
+ * @brief Lire la distance mesurée
+ * @return Distance en centimètres
+ */
+float Ultrasonic_GetDistance(void)
+{
+    return distance_cm;
+}
+
+/**
+ * @brief Vérifier si une mesure est terminée
+ * @return true si mesure terminée, false sinon
+ */
+bool Ultrasonic_IsMeasurementDone(void)
+{
+    return measurement_done;
+}
+
+/**
+ * @brief Effectuer une mesure complète (bloquante)
+ * @param timeout_ms: Timeout en millisecondes
+ * @return Distance en cm, ou -1 en cas de timeout
+ */
+float Ultrasonic_Measure(uint32_t timeout_ms)
+{
+    uint32_t start_tick = HAL_GetTick();
+
+    /* Démarrer l'Input Capture en mode interruption */
+    HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
+
+    /* Déclencher la mesure */
+    Ultrasonic_Trigger();
+
+    /* Attendre la fin de la mesure ou timeout */
+    while (!measurement_done)
+    {
+        if ((HAL_GetTick() - start_tick) > timeout_ms)
+        {
+            HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_2);
+            return -1.0f; // Timeout
+        }
+    }
+
+    return distance_cm;
+}
+
+/**
+ * @brief Fonction d'initialisation du capteur
+ * @note À appeler après l'initialisation du TIM2 par CubeMX
+ */
+void Ultrasonic_Init(void)
+{
+    /* Initialiser le DWT pour les délais microsecondes */
+    DWT_Init();
+
+    /* S'assurer que le timer est configuré correctement
+     * Configuration attendue dans CubeMX:
+     * - TIM2 Channel 2 en Input Capture Direct Mode
+     * - Prescaler pour avoir 1MHz (1µs de résolution)
+     * - Polarité: Rising Edge
+     * - Interruption activée
+     */
+
+    /* La broche sera configurée dynamiquement dans Ultrasonic_Trigger() */
+}
+
+/* ========== Exemple d'utilisation dans main.c ========== */
+
+/*
+int main(void)
+{
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_TIM2_Init();  // Configuré dans CubeMX
+
+    Ultrasonic_Init();
+
+    while (1)
+    {
+        float distance = Ultrasonic_Measure(100); // Timeout de 100ms
+
+        if (distance > 0)
+        {
+            printf("Distance: %.2f cm\r\n", distance);
+        }
+        else
+        {
+            printf("Erreur de mesure (timeout)\r\n");
+        }
+
+        HAL_Delay(500); // Mesure toutes les 500ms
+    }
+}
+*/

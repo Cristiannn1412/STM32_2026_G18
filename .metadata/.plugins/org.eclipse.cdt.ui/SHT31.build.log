@@ -1,0 +1,59 @@
+10:49:02 **** Incremental Build of configuration Debug for project SHT31 ****
+make -j4 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32L476xx -c -I../Core/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32L4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c: In function 'main':
+../Core/Src/main.c:136:43: warning: spurious trailing '%' in format [-Wformat=]
+  136 |         sprintf((char*)buf, "%u.%u C ; %u %",
+      |                                           ^
+../Core/Src/main.c:144:26: warning: pointer targets in passing argument 2 of 'lcd_print' differ in signedness [-Wpointer-sign]
+  144 |         lcd_print(&hi2c1,buf);
+      |                          ^~~
+      |                          |
+      |                          uint8_t * {aka unsigned char *}
+In file included from ../Core/Src/main.c:26:
+../Core/Inc/LCD.h:102:47: note: expected 'char *' but argument is of type 'uint8_t *' {aka 'unsigned char *'}
+  102 | void lcd_print(I2C_HandleTypeDef* I2Cx, char *str);
+      |                                         ~~~~~~^~~
+../Core/Src/main.c:149:26: warning: pointer targets in passing argument 2 of 'lcd_print' differ in signedness [-Wpointer-sign]
+  149 |         lcd_print(&hi2c1,&buf[10]);
+      |                          ^~~~~~~~
+      |                          |
+      |                          uint8_t * {aka unsigned char *}
+../Core/Inc/LCD.h:102:47: note: expected 'char *' but argument is of type 'uint8_t *' {aka 'unsigned char *'}
+  102 | void lcd_print(I2C_HandleTypeDef* I2Cx, char *str);
+      |                                         ~~~~~~^~~
+../Core/Src/main.c:80:9: warning: unused variable 'partieEntiere2' [-Wunused-variable]
+   80 |   float partieEntiere2;
+      |         ^~~~~~~~~~~~~~
+../Core/Src/main.c:79:9: warning: unused variable 'partieDecimal2' [-Wunused-variable]
+   79 |   float partieDecimal2;
+      |         ^~~~~~~~~~~~~~
+../Core/Src/main.c:74:21: warning: unused variable 'valeur2' [-Wunused-variable]
+   74 |   volatile uint16_t valeur2;
+      |                     ^~~~~~~
+../Core/Src/main.c:111:7: warning: '__builtin_memcpy' writing 13 bytes into a region of size 12 overflows the destination [-Wstringop-overflow=]
+  111 |       strcpy((char*)buf, "erreur_T!!\r\n");
+      |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:72:11: note: destination object 'buf' of size 12
+   72 |   uint8_t buf[12];
+      |           ^~~
+../Core/Src/main.c:118:9: warning: '__builtin_memcpy' writing 13 bytes into a region of size 12 overflows the destination [-Wstringop-overflow=]
+  118 |         strcpy((char*)buf, "erreur_R!!\r\n");
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:72:11: note: destination object 'buf' of size 12
+   72 |   uint8_t buf[12];
+      |           ^~~
+arm-none-eabi-gcc -o "SHT31.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\G45p8\Documents\STM322026_G18\SHT31\STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SHT31.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: SHT31.elf
+ 
+arm-none-eabi-size  SHT31.elf 
+arm-none-eabi-objdump -h -S SHT31.elf  > "SHT31.list"
+   text	   data	    bss	    dec	    hex	filename
+  20504	     92	   2124	  22720	   58c0	SHT31.elf
+Finished building: default.size.stdout
+ 
+Finished building: SHT31.list
+ 
+
+10:49:04 Build Finished. 0 errors, 8 warnings. (took 1s.131ms)
+

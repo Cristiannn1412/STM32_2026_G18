@@ -1,0 +1,10 @@
+09:20:01 **** Incremental Build of configuration Debug for project UltrasonCpt ****
+make -j4 all 
+arm-none-eabi-size  UltrasonCpt.elf 
+   text	   data	    bss	    dec	    hex	filename
+  24156	     92	   2220	  26468	   6764	UltrasonCpt.elf
+Finished building: default.size.stdout
+ 
+
+09:20:01 Build Finished. 0 errors, 0 warnings. (took 314ms)
+

@@ -1,0 +1,7 @@
+../Core/Src/lora.c:26:6:lora_envoiebrut	272	static
+../Core/Src/lora.c:38:6:lora_init	16	static
+../Core/Src/lora.c:71:6:lora_envoie	352	static
+../Core/Src/lora.c:94:6:lora_startrecep	8	static
+../Core/Src/lora.c:106:13:hex_vers_texte	40	static
+../Core/Src/lora.c:119:6:lora_traiterecep	264	static
+../Core/Src/lora.c:177:6:lora_uart_callback	8	static

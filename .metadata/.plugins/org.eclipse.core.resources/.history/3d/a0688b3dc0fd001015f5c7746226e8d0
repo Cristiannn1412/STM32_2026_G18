@@ -1,0 +1,147 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c                // Fichier principal du programme
+  * @brief          : Main program body     // Programme principal STM32
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* ===================== INCLUDES ===================== */
+#include "main.h"        // Définitions générales STM32
+#include "i2c.h"         // Fonctions et structures I2C
+#include "usart.h"       // Fonctions UART
+#include "gpio.h"        // Fonctions GPIO
+#include "LCD.h"         // Librairie LCD I2C
+
+/* USER CODE BEGIN Includes */
+#include <string.h>      // Fonctions sur chaînes de caractères
+#include <stdio.h>       // sprintf
+/* USER CODE END Includes */
+
+/* ===================== VARIABLES GLOBALES ===================== */
+
+/* Adresse I2C du capteur SHT31 (0x44), décalée pour format HAL (8 bits) */
+static const uint8_t CAPTEUR_ADRS = 0x44 << 1;
+
+/* Commande SHT31 : mesure haute précision sans clock stretching */
+static const uint8_t CAPTEUR_CMD_MSB = 0x24;
+static const uint8_t CAPTEUR_CMD_LSB = 0x16;
+
+/* Structure utilisée pour le LCD */
+rgb_lcd lcd;
+
+/* ===================== MAIN ===================== */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
+
+  HAL_StatusTypeDef ret;        // Variable pour vérifier le retour des fonctions HAL
+  uint8_t buf[12];              // Buffer pour I2C, LCD et UART
+  volatile uint16_t valeur;     // Valeur brute 16 bits reçue du capteur
+  volatile uint16_t valeur2;    // Non utilisé (reste du développement)
+  volatile float temp;          // Température calculée
+  float umid;                   // Humidité calculée
+  float partieDecimal;          // Partie décimale température
+  float partieEntiere;          // Partie entière température
+  float partieDecimal2;         // Non utilisé
+  float partieEntiere2;         // Non utilisé
+
+  /* USER CODE END 1 */
+  /* MCU Configuration--------------------------------------------------------*/
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+  /* USER CODE BEGIN Init */
+  /* USER CODE END Init */
+  /* Configure the system clock */
+  SystemClock_Config();
+  /* USER CODE BEGIN SysInit */
+  /* USER CODE END SysInit */
+  /* Initialisation des périphériques configurés dans CubeMX */
+  MX_GPIO_Init();        // GPIO
+  MX_USART2_UART_Init(); // UART2
+  MX_I2C1_Init();        // I2C1
+
+  /* USER CODE BEGIN 2 */
+
+  lcd_init(&hi2c1, &lcd);        // Initialisation du LCD via le bus I2C
+  reglagecouleur(100,100,100);   // Réglage couleur rétroéclairage (gris)
+  lcd_position(&hi2c1,0,0);      // Position curseur ligne 0 colonne 0
+  reglagecouleur(0,0,255);       // Changement couleur rétroéclairage (bleu)
+
+  /* USER CODE END 2 */
+
+  /* ===================== BOUCLE INFINIE ===================== */
+  while (1)
+  {
+        /* Chargement de la commande de mesure SHT31 dans le buffer */
+        buf[0] = CAPTEUR_CMD_MSB;
+        buf[1] = CAPTEUR_CMD_LSB;
+
+        /* Envoi de la commande au capteur via I2C */
+        ret = HAL_I2C_Master_Transmit(&hi2c1, CAPTEUR_ADRS, buf, 2, HAL_MAX_DELAY);
+
+        /* Vérification erreur transmission */
+        if ( ret != HAL_OK)
+        {
+            strcpy((char*)buf, "erreur_T!!\r\n"); // Message d’erreur transmission
+        }
+        else
+        {
+            /* Lecture des 6 octets envoyés par le SHT31 */
+            ret = HAL_I2C_Master_Receive(&hi2c1, CAPTEUR_ADRS, buf, 6, HAL_MAX_DELAY);
+
+            /* Vérification erreur réception */
+            if ( ret != HAL_OK)
+            {
+                strcpy((char*)buf, "erreur_R!!\r\n"); // Message d’erreur réception
+            }
+            else
+            {
+                /* Reconstruction de la valeur température (MSB + LSB) */
+                valeur = buf[1] | buf[0] << 8;
+
+                /* Calcul de la température selon la datasheet SHT31 */
+                temp = -45 + 175 * ((float)valeur / 65535);
+
+                /* Extraction partie entière */
+                partieEntiere = (int) temp;
+
+                /* Extraction partie décimale */
+                partieDecimal = temp;
+                partieDecimal *= 100;
+                partieDecimal = partieDecimal - (partieEntiere * 100);
+
+                /* Reconstruction de la valeur humidité */
+                valeur = buf[4] | buf[3] << 8;
+
+                /* Calcul humidité relative en pourcentage */
+                umid = 100 * ((float)valeur / 65535);
+
+                /* Mise en forme des données dans une chaîne */
+                sprintf((char*)buf, "%u.%u C ; %u %",
+                        (unsigned int)partieEntiere,
+                        (unsigned int)partieDecimal,
+                        (unsigned int)umid);
+
+                /* Affichage température sur LCD */
+                lcd_position(&hi2c1,0,0);
+                lcd_print(&hi2c1,"Temp :  ");
+                lcd_position(&hi2c1,7,0);
+                lcd_print(&hi2c1,buf);
+
+                /* Affichage humidité sur LCD */
+                lcd_position(&hi2c1,0,1);
+                lcd_print(&hi2c1,"Hum  : ");
+                lcd_position(&hi2c1,7,1);
+                lcd_print(&hi2c1,&buf[10]);
+            }
+        }
+
+        /* Envoi des données via UART vers le PC */
+        HAL_UART_Transmit(&huart2, buf, strlen((char*)buf), HAL_MAX_DELAY);
+
+        /* Attente de 1 seconde avant la prochaine mesure */
+        HAL_Delay(1000);
+  }
+}

@@ -1,0 +1,8 @@
+../Core/Src/ultrason.c:30:6:HAL_Delay_us	24	static
+../Core/Src/ultrason.c:42:6:Ultrasonic_Trigger	32	static
+../Core/Src/ultrason.c:72:6:DWT_Init	4	static
+../Core/Src/ultrason.c:83:6:HAL_TIM_IC_CaptureCallback	24	static
+../Core/Src/ultrason.c:148:10:Ultrasonic_GetDistance	4	static
+../Core/Src/ultrason.c:157:6:Ultrasonic_IsMeasurementDone	4	static
+../Core/Src/ultrason.c:167:10:Ultrasonic_Measure	24	static
+../Core/Src/ultrason.c:194:6:Ultrasonic_Init	8	static

@@ -1,0 +1,7 @@
+../Core/Src/lora.c:26:6:lora_envoiebrut	1
+../Core/Src/lora.c:38:6:lora_init	2
+../Core/Src/lora.c:71:6:lora_envoie	3
+../Core/Src/lora.c:94:6:lora_startrecep	1
+../Core/Src/lora.c:106:13:hex_vers_texte	3
+../Core/Src/lora.c:119:6:lora_traiterecep	6
+../Core/Src/lora.c:177:6:lora_uart_callback	3
